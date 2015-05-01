@@ -44,6 +44,9 @@ print zp.loc[0:3, ['zip_code']]
 # Select rows on condition
 print zp[zp.zip_code == '90703']
 
+# What if it's not exactly equal
+print zp[zp.zip_code.str.startswith("904")]
+
 # Select on "IN" condition
 print zp[zp.zip_code.isin(['90401', '90703'])]
 
@@ -109,3 +112,8 @@ by_zip.count().head()
 by_zip.size().head()
 by_zip.zip_code.nunique().order().head()
 
+# sudo apt-get install python-dev libfreetype6-dev libpng-dev
+# sudo pip install matplotlib
+
+pl = zp["zip_code"].value_counts()[:10].plot(kind='bar')
+pl.get_figure().savefig('a.png')
