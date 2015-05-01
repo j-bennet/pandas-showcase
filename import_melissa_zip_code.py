@@ -99,3 +99,13 @@ engine = create_engine('postgresql://username:pass@localhost:5432/playground')
 
 zip_codes.to_sql('zip_code', engine, index=False, if_exists='append')
 msa_codes.to_sql('msa', engine, index=False, if_exists='append')
+
+# Let's do some grouping
+by_zip_and_state = zip_codes.groupby(['zip_code', 'state_code'])
+by_zip = zip_codes.groupby(['zip_code'])
+
+# And counting
+by_zip.count().head()
+by_zip.size().head()
+by_zip.zip_code.nunique().order().head()
+
