@@ -1,4 +1,5 @@
 import pandas as pd
+from sqlalchemy import create_engine
 
 # Read a fixed-width file
 zp = pd.read_fwf(
@@ -57,7 +58,7 @@ print zp[zp.isnull().any(axis=1)]
 zp.to_excel('data/zip.xlsx', sheet_name='zip_code')
 
 # Join zip codes on MSA, to see MSA names
-zms = zp.merge(ms, left_on="msa", right_on="code")
+zms = zp.merge(ms, on="msa_code")
 
 # Select only needed cols
 zip_codes = zp[["zip_code", "state_code", "city_name", "msa_code", "area_code"]]
@@ -95,8 +96,6 @@ WITH (
   OIDS=FALSE
 );
 """
-
-from sqlalchemy import create_engine
 
 engine = create_engine('postgresql://username:pass@localhost:5432/playground')
 
