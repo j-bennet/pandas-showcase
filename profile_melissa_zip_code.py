@@ -11,7 +11,12 @@ from argparse import ArgumentParser
 p = ArgumentParser()
 
 p.add_argument('importer',
-               choices=['pandas', 'gocept', 'fixedwidth', 'fixed'],
+               choices=[
+                   'pandas',
+                   'gocept',
+                   'fixedwidth',
+                   'fixed'
+               ],
                help='Which library to profile.')
 
 p.add_argument('top_n',
@@ -117,6 +122,7 @@ def run_fixed():
     Load records with fixed.
 
     * PyPy: NO. Use easy_install fixed.
+    * Source: https://github.com/cjw296/fixed
     * Docs: SUCK. Zero in-code docs, and docs URL does not exist.
     * Independent: yes
     * Small: yes
@@ -167,6 +173,7 @@ def run_fixedwidth():
     Load records with fixedwidth.FixedWidth.
 
     * PyPy: OK
+    * Source: https://github.com/ShawnMilo/fixedwidth
     * Docs: usable
     * Independent: yes
     * Small: yes
@@ -253,6 +260,7 @@ def run_gocept():
     Load records with gocept.recordserialize.
 
     * PyPy: OK
+    * Source: https://bitbucket.org/gocept/gocept.recordserialize/
     * Docs: decent
     * Independent: yes
     * Small: yes
@@ -303,6 +311,7 @@ def run_pandas():
     Load records into pandas data frame.
 
     * PyPy: OK
+    * Source: https://github.com/pydata/pandas
     * Docs: amazing
     * Independent: no
     * Small: no
