@@ -1,5 +1,6 @@
 import pandas as pd
 
+from time import clock
 from cProfile import Profile
 from pstats import Stats
 from memory_profiler import LineProfiler
@@ -13,6 +14,7 @@ p = ArgumentParser()
 p.add_argument('importer',
                choices=[
                    'pandas',
+                   'pandas-stream',
                    'gocept',
                    'fixedwidth',
                    'fixed'
@@ -30,6 +32,12 @@ p.add_argument('--memory',
                default=False,
                help='Whether to run the memory profiler.')
 
+p.add_argument('--simple',
+               action='store_true',
+               default=False,
+               help='Whether to replace the cProfile.Profile with a dumb ' +
+                    '"time" call.')
+
 parsed_args = p.parse_args()
 
 
@@ -43,11 +51,13 @@ def main():
     fun = choose_func_to_run()
     pr = enable_time_profiler()
     mem = enable_mem_profiler(fun)
+    tm = enable_simple_profiler()
 
     fun()
 
     show_time_profiler_results(pr, parsed_args.top_n)
     show_mem_profiler_results(mem)
+    show_simple_timer_results(tm)
 
 
 def choose_func_to_run():
@@ -61,6 +71,8 @@ def choose_func_to_run():
         return run_gocept
     elif parsed_args.importer == 'pandas':
         return run_pandas
+    elif parsed_args.importer == 'pandas-stream':
+        return run_pandas_stream
     elif parsed_args.importer == 'fixedwidth':
         return run_fixedwidth
     elif parsed_args.importer == 'fixed':
@@ -90,9 +102,38 @@ def enable_time_profiler():
     Enable time profiler.
     :return: cProfile.Profile
     """
-    pr = Profile()
-    pr.enable()
+    global parsed_args
+
+    pr = None
+
+    if not parsed_args.simple:
+        pr = Profile()
+        pr.enable()
+
     return pr
+
+
+def enable_simple_profiler():
+    """
+    Get start time of script.
+    :return:
+    """
+    global parsed_args
+
+    tm = None
+    if parsed_args.simple:
+        tm = clock()
+    return tm
+
+
+def show_simple_timer_results(start_time):
+    """
+    Show simple time elapsed.
+    """
+    if start_time:
+        end_time = clock()
+        difference = end_time - start_time
+        print 'Elapsed:', difference
 
 
 def show_time_profiler_results(pr, top_records):
@@ -101,10 +142,11 @@ def show_time_profiler_results(pr, top_records):
     :param pr: profiler instance
     :param top_records: how many top function calls to show.
     """
-    st = Stats(pr)
-    st.strip_dirs()
-    st.sort_stats('cumulative')
-    st.print_stats(top_records)
+    if pr:
+        st = Stats(pr)
+        st.strip_dirs()
+        st.sort_stats('cumulative')
+        st.print_stats(top_records)
 
 
 def show_mem_profiler_results(mem):
@@ -267,7 +309,7 @@ def run_gocept():
     * Can specify column data types: no
     * Can read in chunks: no
     * Can skip columns: no
-    * Can stream: no
+    * Can stream: yes if read file manually and parse record-by-record
     * Return type: array
     * Memory usage: about 170Mb (bad because it stores the whole list in memory)
     * Timing: around 2.5 sec
@@ -318,7 +360,7 @@ def run_pandas():
     * Can specify column data types: yes
     * Can read in chunks: yes
     * Can skip columns: yes
-    * Can stream: no
+    * Can stream: yes but it won't be a DataFrame
     * Return type: DataFrame
     * Memory usage: about 60Mb
     * Timing: around 0.7 sec
@@ -336,6 +378,55 @@ def run_pandas():
         skiprows=2
     )
     print 'Records:', len(zp)
+
+
+def run_pandas_stream():
+    """
+    Load records with pandas streaming interface.
+
+    * PyPy: OK
+    * Source: https://github.com/pydata/pandas
+    * Docs: amazing
+    * Independent: no
+    * Small: no
+    * Can specify column data types: yes
+    * Can read in chunks: yes
+    * Can skip columns: yes
+    * Can stream: yes
+    * Return type: DataFrame
+    * Memory usage: about 60Mb
+    * Timing: depends on chunk size.
+              10000: 0.48 sec
+              5000: 0.47 sec
+              1000: 0.5 sec
+              500: 0.56 sec
+              100: 6 sec
+              1: 55 sec
+
+      Because every chunk is a DataFrame, creating one for each record
+      is a big overhead.
+
+    """
+    reader = pd.read_fwf(
+        'data/ZIP.DAT',
+        widths=[5, 2, 28, 1, 5, 7, 8, 3, 6, 1, 1, 4, 4, 3],
+        names=['zip_code', 'state_code', 'city_name', 'type', 'county_fips',
+               'lat', 'lon', 'area_code', 'fin_code', 'last_line',
+               'facility', 'msa_code', 'pmsa_code', 'filler'],
+        usecols=[0, 1, 2, 4, 5, 6, 7, 11, 12],
+        converters={'zip_code': str, 'county_fips': str, 'area_code': str,
+                    'msa_code': str, 'pmsa_code': str},
+        header=None,
+        skiprows=2,
+        chunksize=500
+    )
+
+    chunks = 0
+
+    for chunk in reader:
+        chunks += 1
+
+    print 'Chunks:', chunks
 
 
 if __name__ == '__main__':
