@@ -11,7 +11,7 @@ from argparse import ArgumentParser
 p = ArgumentParser()
 
 p.add_argument('importer',
-               choices=['pandas', 'gocept', 'fixedwidth'],
+               choices=['pandas', 'gocept', 'fixedwidth', 'fixed'],
                help='Which library to profile.')
 
 p.add_argument('top_n',
@@ -58,6 +58,8 @@ def choose_func_to_run():
         return run_pandas
     elif parsed_args.importer == 'fixedwidth':
         return run_fixedwidth
+    elif parsed_args.importer == 'fixed':
+        return run_fixed
 
 
 def enable_mem_profiler(fun):
@@ -110,10 +112,62 @@ def show_mem_profiler_results(mem):
         mem.disable()
 
 
+def run_fixed():
+    """
+    Load records with fixed.
+
+    * PyPy: NO. Use easy_install fixed.
+    * Docs: SUCK. Zero in-code docs, and docs URL does not exist.
+    * Independent: yes
+    * Small: yes
+    * Can specify column data types: yes
+    * Can read in chunks: yes
+    * Can skip columns: yes
+    * Can stream: yes
+    * Return type: wrapper around file
+    * Memory usage: very small (below 1 Mb)
+    * Timing: around 0.5 seconds
+    """
+    from fixed import Parser, Record, Field, Discriminator, Skip
+
+    class ZipCodeParser(Parser):
+
+        class ZipCodeRecord(Record):
+            type = Discriminator('')
+            zip_code = Field(5)
+            state_code = Field(2)
+            city_name = Field(28)
+            zip_type = Field(1)
+            county_code = Field(5)
+            latitude = Field(7, convertor=float)
+            longitude = Field(8, convertor=float)
+            area_code = Field(3)
+            finance_code = Skip(6)
+            city_official = Field(1)
+            facility = Skip(1)
+            msa_code = Field(4)
+            pmsa_code = Field(4)
+            filler = Skip(3)
+
+    records = 0
+    with open('data/ZIP.DAT', 'r') as f:
+        p = ZipCodeParser(f)
+        for rec in p:
+            #if isinstance(rec, p.ZipCodeRecord.type):
+            #    print rec.zip_code, rec.state_code, rec.city_name, \
+            #        rec.county_code, rec.area_code, rec.msa_code, \
+            #        rec.pmsa_code
+            records += 1
+
+    print 'Records:', records
+
+
 def run_fixedwidth():
     """
     Load records with fixedwidth.FixedWidth.
 
+    * PyPy: OK
+    * Docs: usable
     * Independent: yes
     * Small: yes
     * Can specify column data types: yes
@@ -190,19 +244,6 @@ def run_fixedwidth():
         for line in f:
             zp.line = line
             records += 1
-            #print "{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}".format(
-            #    zp.data['zip_code'],
-            #    zp.data['state_code'],
-            #    zp.data['city_name'],
-            #    zp.data['zip_type'],
-            #    zp.data['county_code'],
-            #    zp.data['latitude'],
-            #    zp.data['longitude'],
-            #    zp.data['area_code'],
-            #    zp.data['msa_code'],
-            #    zp.data['pmsa_code'])
-            #if records == 100:
-            #    break
 
     print 'Records:', records
 
@@ -211,6 +252,8 @@ def run_gocept():
     """
     Load records with gocept.recordserialize.
 
+    * PyPy: OK
+    * Docs: decent
     * Independent: yes
     * Small: yes
     * Can specify column data types: no
@@ -259,6 +302,8 @@ def run_pandas():
     """
     Load records into pandas data frame.
 
+    * PyPy: OK
+    * Docs: amazing
     * Independent: no
     * Small: no
     * Can specify column data types: yes
