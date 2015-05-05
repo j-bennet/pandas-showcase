@@ -16,8 +16,10 @@ p.add_argument('importer',
                    'pandas',
                    'pandas-stream',
                    'gocept',
+                   'gocept-stream',
                    'fixedwidth',
-                   'fixed'
+                   'fixed',
+                   'djcopy'
                ],
                help='Which library to profile.')
 
@@ -30,13 +32,13 @@ p.add_argument('top_n',
 p.add_argument('--memory',
                action='store_true',
                default=False,
-               help='Whether to run the memory profiler.')
+               help='Whether to run the memory profiler (huge overhead).')
 
-p.add_argument('--simple',
+p.add_argument('--profile',
                action='store_true',
                default=False,
-               help='Whether to replace the cProfile.Profile with a dumb ' +
-                    '"time" call.')
+               help='Whether to use cProfile.Profile for detailed stats ' +
+                    '(adds overhead).')
 
 parsed_args = p.parse_args()
 
@@ -48,12 +50,16 @@ def main():
 
     global parsed_args
 
-    fun = choose_func_to_run()
+    tpl = choose_func_to_run()
     pr = enable_time_profiler()
-    mem = enable_mem_profiler(fun)
+    mem = enable_mem_profiler(tpl[0])
     tm = enable_simple_profiler()
 
-    fun()
+    fun = tpl[0]
+    if len(tpl) > 1:
+        fun(*tpl[1:])
+    else:
+        fun()
 
     show_time_profiler_results(pr, parsed_args.top_n)
     show_mem_profiler_results(mem)
@@ -65,18 +71,8 @@ def choose_func_to_run():
     Select a function to test according to provided arguments.
     :return: function
     """
-    global parsed_args
-
-    if parsed_args.importer == 'gocept':
-        return run_gocept
-    elif parsed_args.importer == 'pandas':
-        return run_pandas
-    elif parsed_args.importer == 'pandas-stream':
-        return run_pandas_stream
-    elif parsed_args.importer == 'fixedwidth':
-        return run_fixedwidth
-    elif parsed_args.importer == 'fixed':
-        return run_fixed
+    global PARSERS
+    return PARSERS[parsed_args.importer]
 
 
 def enable_mem_profiler(fun):
@@ -106,7 +102,7 @@ def enable_time_profiler():
 
     pr = None
 
-    if not parsed_args.simple:
+    if parsed_args.profile:
         pr = Profile()
         pr.enable()
 
@@ -118,22 +114,16 @@ def enable_simple_profiler():
     Get start time of script.
     :return:
     """
-    global parsed_args
-
-    tm = None
-    if parsed_args.simple:
-        tm = clock()
-    return tm
+    return clock()
 
 
 def show_simple_timer_results(start_time):
     """
     Show simple time elapsed.
     """
-    if start_time:
-        end_time = clock()
-        difference = end_time - start_time
-        print 'Elapsed:', difference
+    end_time = clock()
+    difference = end_time - start_time
+    print 'Elapsed:', difference
 
 
 def show_time_profiler_results(pr, top_records):
@@ -174,7 +164,7 @@ def run_fixed():
     * Can stream: yes
     * Return type: wrapper around file
     * Memory usage: very small (below 1 Mb)
-    * Timing: around 0.5 seconds
+    * Timing: around 0.4 seconds
     """
     from fixed import Parser, Record, Field, Discriminator, Skip
 
@@ -210,6 +200,52 @@ def run_fixed():
     print 'Records:', records
 
 
+def run_djcopybook():
+    """
+    Load records with django-copybook.
+
+    * PyPy: OK
+    * Source: https://github.com/imtapps/django-copybook
+    * Docs: usable
+    * Independent: not really, also installs django
+    * Small: yes
+    * Can specify column data types: yes
+    * Can read in chunks: manually
+    * Can skip columns: no
+    * Can stream: manually
+    * Return type: every line is a custom class inherited from Record
+    * Memory usage: very small (< 1 Mb)
+    * Timing: around 31 sec. WTH is it doing?
+    """
+    from djcopybook.fixedwidth import Record
+    from djcopybook.fixedwidth import fields
+
+    class ZipCodeRecord(Record):
+        zip_code = fields.StringField(5)
+        state_code = fields.StringField(2)
+        city_name = fields.StringField(28)
+        zip_type = fields.StringField(1)
+        county_code = fields.StringField(5)
+        latitude = fields.DecimalField(7, decimals=4)
+        longitude = fields.DecimalField(8, decimals=4)
+        area_code = fields.StringField(3)
+        finance_code = fields.StringField(6)
+        city_official = fields.StringField(1)
+        facility = fields.StringField(1)
+        msa_code = fields.StringField(4)
+        pmsa_code = fields.StringField(4)
+        filler = fields.StringField(3)
+        eol = fields.StringField(2)
+
+    records = 0
+    with open('data/ZIP.DAT', 'r') as f:
+        for line in f:
+            zp = ZipCodeRecord.from_record(line)
+            records += 1
+
+    print 'Records:', records
+
+
 def run_fixedwidth():
     """
     Load records with fixedwidth.FixedWidth.
@@ -225,7 +261,7 @@ def run_fixedwidth():
     * Can stream: manually
     * Return type: parses every line as dict
     * Memory usage: minimal
-    * Timing: around 2.5 sec
+    * Timing: around 1.9 sec
     """
     from fixedwidth.fixedwidth import FixedWidth
     fields = {
@@ -297,7 +333,7 @@ def run_fixedwidth():
     print 'Records:', records
 
 
-def run_gocept():
+def run_gocept(is_stream=False):
     """
     Load records with gocept.recordserialize.
 
@@ -307,14 +343,14 @@ def run_gocept():
     * Independent: yes
     * Small: yes
     * Can specify column data types: no
-    * Can read in chunks: no
+    * Can read in chunks: manual
     * Can skip columns: no
     * Can stream: yes if read file manually and parse record-by-record
-    * Return type: array
-    * Memory usage: about 170Mb (bad because it stores the whole list in memory)
-    * Timing: around 2.5 sec
+    * Return type: array of records / or read each record separately
+    * Memory usage: barely any if reading line-by-line / about 170Mb otherwise
+    (stores the whole list in memory)
+    * Timing: around 1.9 sec if reading line-by-line, 1.5 sec otherwise
     """
-
     from gocept.recordserialize import FixedWidthRecord
 
     class ZipCodeRecord(FixedWidthRecord):
@@ -343,9 +379,19 @@ def run_gocept():
         ]
 
     zr = ZipCodeRecord()
-    with open('data/ZIP.DAT', 'r') as f:
-        records = zr.parse_file(f)
-    print 'Records:', len(records)
+
+    records = 0
+
+    if is_stream:
+        with open('data/ZIP.DAT', 'r') as f:
+            for line in f:
+                rec = zr.parse(line)
+                records += 1
+    else:
+        with open('data/ZIP.DAT', 'r') as f:
+            records = len(zr.parse_file(f))
+
+    print 'Records:', records
 
 
 def run_pandas():
@@ -363,7 +409,7 @@ def run_pandas():
     * Can stream: yes but it won't be a DataFrame
     * Return type: DataFrame
     * Memory usage: about 60Mb
-    * Timing: around 0.7 sec
+    * Timing: around 0.5 sec
     """
     zp = pd.read_fwf(
         'data/ZIP.DAT',
@@ -393,8 +439,8 @@ def run_pandas_stream():
     * Can read in chunks: yes
     * Can skip columns: yes
     * Can stream: yes
-    * Return type: DataFrame
-    * Memory usage: about 60Mb
+    * Return type: TextFileReader (iterable)
+    * Memory usage: minimal (~1 Mb)
     * Timing: depends on chunk size.
               10000: 0.48 sec
               5000: 0.47 sec
@@ -418,7 +464,7 @@ def run_pandas_stream():
                     'msa_code': str, 'pmsa_code': str},
         header=None,
         skiprows=2,
-        chunksize=500
+        chunksize=1000
     )
 
     chunks = 0
@@ -427,6 +473,17 @@ def run_pandas_stream():
         chunks += 1
 
     print 'Chunks:', chunks
+
+
+PARSERS = {
+    'gocept': (run_gocept, False),
+    'gocept-stream': (run_gocept, True),
+    'pandas': (run_pandas, ),
+    'pandas-stream': (run_pandas_stream, ),
+    'fixedwidth': (run_fixedwidth, ),
+    'fixed': (run_fixed, ),
+    'djcopy': (run_djcopybook, )
+}
 
 
 if __name__ == '__main__':
