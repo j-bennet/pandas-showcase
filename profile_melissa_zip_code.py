@@ -1,14 +1,9 @@
-# -*- coding: utf-8 -*-
-
-"""
-**pharaoh_etl.utility.vendors.test.http_download**
-"""
 import pandas as pd
-
 
 from cProfile import Profile
 from pstats import Stats
-from memory_profiler import profile
+from memory_profiler import LineProfiler
+from memory_profiler import show_results
 
 from gocept.recordserialize import FixedWidthRecord
 from argparse import ArgumentParser
@@ -52,40 +47,94 @@ p.add_argument('top_n',
                nargs='?',
                help='How many top lines from profiler output to display.')
 
-parsed_args = p.parse_args()
+p.add_argument('--memory',
+               action='store_true',
+               default=False,
+               help='Whether to run the memory profiler.')
 
-pr = None
+parsed_args = p.parse_args()
 
 
 def main():
+    """
+    Init the profilers and run the tests.
+    """
+
     global parsed_args
 
-    before()
+    fun = choose_func_to_run()
+    pr = enable_time_profiler()
+    mem = enable_mem_profiler(fun)
+
+    fun()
+
+    show_time_profiler_results(pr, parsed_args.top_n)
+    show_mem_profiler_results(mem)
+
+
+def choose_func_to_run():
+    """
+    Select a function to test according to provided arguments.
+    :return: function
+    """
+    global parsed_args
 
     if parsed_args.importer == 'gocept':
-        run_gocept()
+        return run_gocept
     elif parsed_args.importer == 'pandas':
-        run_pandas()
-
-    after(parsed_args.top_n)
+        return run_pandas
 
 
-def before():
-    global pr
+def enable_mem_profiler(fun):
+    """
+    Enable memory profiler if specified in arguments.
+    :param fun: function to wrap
+    :return: LineProfiler instance
+    """
+    global parsed_args
 
+    mem = None
+
+    if parsed_args.memory:
+        mem = LineProfiler()
+        mem.add_function(fun)
+        mem.enable()
+
+    return mem
+
+
+def enable_time_profiler():
+    """
+    Enable time profiler.
+    :return: cProfile.Profile
+    """
     pr = Profile()
     pr.enable()
+    return pr
 
 
-def after(top_records):
-    global pr
-
+def show_time_profiler_results(pr, top_records):
+    """
+    Show results of timed profiling.
+    :param pr: profiler instance
+    :param top_records: how many top function calls to show.
+    """
     st = Stats(pr)
     st.strip_dirs()
     st.sort_stats('cumulative')
     st.print_stats(top_records)
 
-@profile
+
+def show_mem_profiler_results(mem):
+    """
+    Show results of memory profiling if enabled.
+    :param mem: profiler instance
+    """
+    if mem:
+        show_results(mem)
+        mem.disable()
+
+
 def run_gocept():
     """
     Load records with gocept.recordserialize.
@@ -102,7 +151,6 @@ def run_gocept():
     print 'Records:', len(records)
 
 
-@profile
 def run_pandas():
     """
     Load records into pandas data frame.
