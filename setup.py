@@ -18,5 +18,6 @@ setup(
         'SQLAlchemy==1.0.2',
         'openpyxl==1.8.6',
         'pandas==0.16.0',
+        'FixedWidth==0.99',
     ]
 )
