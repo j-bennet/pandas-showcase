@@ -216,7 +216,7 @@ def run_fixed():
     * Can specify column data types: yes
     * Can read in chunks: yes
     * Can skip columns: yes
-    * Can stream: yes
+    * Can stream: manually
     * Return type: wrapper around file
     * Memory usage: very small (below 1 Mb)
     * Timing: around 0.4 seconds
@@ -400,7 +400,7 @@ def run_gocept(is_stream=False):
     * Can specify column data types: no
     * Can read in chunks: no
     * Can skip columns: no
-    * Can stream: yes if read file manually and parse record-by-record
+    * Can stream: manually
     * Return type: array of records / or read each record separately
     * Memory usage: barely any if reading line-by-line / about 170Mb otherwise
     (stores the whole list in memory)
