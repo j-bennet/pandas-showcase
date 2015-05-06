@@ -160,7 +160,8 @@ def run_ascii():
     * Docs: Decent
     * Independent: NumPy not required but recommended.
     * Small: no
-    * Can specify column data types: ?
+    * Can specify column data types: yes. If trying to guess, will parse zips
+    as numbers.
     * Can read in chunks: no
     * Can skip columns: yes
     * Can stream: no
@@ -397,7 +398,7 @@ def run_gocept(is_stream=False):
     * Independent: yes
     * Small: yes
     * Can specify column data types: no
-    * Can read in chunks: manual
+    * Can read in chunks: no
     * Can skip columns: no
     * Can stream: yes if read file manually and parse record-by-record
     * Return type: array of records / or read each record separately
