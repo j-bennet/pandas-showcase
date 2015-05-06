@@ -19,7 +19,8 @@ p.add_argument('importer',
                    'gocept-stream',
                    'fixedwidth',
                    'fixed',
-                   'djcopy'
+                   'djcopy',
+                   'ascii'
                ],
                help='Which library to profile.')
 
@@ -147,6 +148,51 @@ def show_mem_profiler_results(mem):
     if mem:
         show_results(mem)
         mem.disable()
+
+
+def run_ascii():
+    """
+    Load records with asciitable.
+
+    * PyPy: OK. Development stopped (was moved into the Astropy project
+    as astropy.io.ascii).
+    * Source: https://github.com/taldcroft/asciitable
+    * Docs: Good
+    * Independent: NumPy not required but recommended.
+    * Small: no
+    * Can specify column data types: ?
+    * Can read in chunks: no
+    * Can skip columns: yes
+    * Can stream: yes
+    * Return type: wrapper around file or iterable
+    * Memory usage: ?
+    * Timing: ?
+    """
+    import asciitable
+    reader = asciitable.get_reader(
+        Reader=asciitable.FixedWidth,
+        header_start=None,
+        data_start=2,
+        names=(
+            'zip_code', 'state_code', 'city_name', 'zip_type',
+            'county_code', 'latitude', 'longitude', 'area_code',
+            'finance_code', 'city_official', 'facility', 'msa_code',
+            'pmsa_code', 'filler'
+        ),
+        include_names=(
+            'zip_code', 'state_code', 'city_name', 'county_code', 'area_code',
+            'msa_code', 'pmsa_code'
+        )
+    )
+
+    data = reader.read('data/ZIP.DAT')
+
+    records = 0
+    for row in data:
+        records += 1
+        print row
+        if records == 100:
+            break
 
 
 def run_fixed():
@@ -482,7 +528,8 @@ PARSERS = {
     'pandas-stream': (run_pandas_stream, ),
     'fixedwidth': (run_fixedwidth, ),
     'fixed': (run_fixed, ),
-    'djcopy': (run_djcopybook, )
+    'djcopy': (run_djcopybook, ),
+    'ascii': (run_ascii, )
 }
 
 

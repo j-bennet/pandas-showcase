@@ -19,6 +19,7 @@ setup(
         'openpyxl==1.8.6',
         'pandas==0.16.0',
         'FixedWidth==0.99',
-        'django-copybook==1.0.3'
+        'django-copybook==1.0.3',
+        'asciitable==0.8.0'
     ]
 )
