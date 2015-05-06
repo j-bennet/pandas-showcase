@@ -157,42 +157,50 @@ def run_ascii():
     * PyPy: OK. Development stopped (was moved into the Astropy project
     as astropy.io.ascii).
     * Source: https://github.com/taldcroft/asciitable
-    * Docs: Good
+    * Docs: Decent
     * Independent: NumPy not required but recommended.
     * Small: no
     * Can specify column data types: ?
     * Can read in chunks: no
     * Can skip columns: yes
-    * Can stream: yes
-    * Return type: wrapper around file or iterable
-    * Memory usage: ?
-    * Timing: ?
+    * Can stream: no
+    * Return type: wrapper around file or iterable, each row is a tuple
+    * Memory usage: ~ 60 Mb
+    * Timing: around 0.7 sec
     """
     import asciitable
+    import numpy
+
     reader = asciitable.get_reader(
         Reader=asciitable.FixedWidth,
         header_start=None,
         data_start=2,
+        col_starts=(0, 5, 7, 35, 36, 41, 48, 56, 59, 65, 66, 67, 71, 75, 78),
+        col_ends=(4, 6, 34, 35, 40, 47, 55, 58, 64, 65, 66, 70, 74, 77, 80),
         names=(
             'zip_code', 'state_code', 'city_name', 'zip_type',
             'county_code', 'latitude', 'longitude', 'area_code',
             'finance_code', 'city_official', 'facility', 'msa_code',
             'pmsa_code', 'filler'
         ),
+        converters={
+            'zip_code': [asciitable.convert_numpy(numpy.str)]
+        },
         include_names=(
-            'zip_code', 'state_code', 'city_name', 'county_code', 'area_code',
-            'msa_code', 'pmsa_code'
-        )
+            'zip_code', 'state_code', 'city_name', 'county_code', 'latitude',
+            'longitude', 'area_code', 'msa_code', 'pmsa_code'
+        ),
     )
 
-    data = reader.read('data/ZIP.DAT')
+    data = reader.read(
+        'data/ZIP.DAT'
+    )
 
     records = 0
     for row in data:
         records += 1
-        print row
-        if records == 100:
-            break
+
+    print 'Records:', records
 
 
 def run_fixed():
