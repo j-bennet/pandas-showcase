@@ -5,15 +5,23 @@ from sqlalchemy import create_engine
 zp = pd.read_fwf(
     'data/ZIP.DAT',
     widths=[5, 2, 28, 1, 5, 7, 8, 3, 6, 1, 1, 4, 4, 3],
-    names=['zip_code', 'state_code', 'city_name', 'type', 'county_fips',
+    names=['zip_code', 'state_code', 'city_name', 'type', 'county_code',
            'lat', 'lon', 'area_code', 'fin_code', 'last_line',
            'facility', 'msa_code', 'pmsa_code', 'filler'],
     usecols=[0, 1, 2, 4, 5, 6, 7, 11, 12],
-    converters={'zip_code': str, 'county_fips': str, 'area_code': str,
-                'msa_code': str, 'pmsa_code': str},
+    converters={'zip_code': unicode, 'state_code': unicode,
+                'city_name': unicode, 'type': unicode,
+                'county_code': unicode, 'area_code': unicode,
+                'fin_code': unicode, 'last_line': unicode,
+                'facility': unicode, 'msa_code': unicode,
+                'pmsa_code': unicode},
     header=None,
-    skiprows=2
+    skiprows=2,
+    encoding='utf-8'
 )
+
+# how many records do we have?
+print zp.shape[0]
 
 # Filter out records without area code: FPO/APO, footer
 zp = zp[~zp.area_code.isnull()]
@@ -23,7 +31,8 @@ ms = pd.read_fwf(
     widths=[4, 4, 60, 2, 8],
     names=['msa_code', 'type', 'msa_name', 'cmsa', 'population'],
     usecols=[0, 1, 2, 3],
-    converters={'msa_code': str, 'type': str, 'msa_name': str, 'cmsa_code': str},
+    converters={'msa_code': unicode, 'type': unicode, 'msa_name': unicode,
+                'cmsa_code': unicode},
     header=None
 )
 
